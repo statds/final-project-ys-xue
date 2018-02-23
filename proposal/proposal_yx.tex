@@ -1,0 +1,76 @@
+\documentclass{article}
+\usepackage{epsfig,graphicx,latexsym,amsfonts,amssymb,amsmath,verbatim}
+\usepackage{booktabs, array, caption, natbib}
+\usepackage{longtable}
+\usepackage{rotating}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage[top = .6in, bottom = .6in, left = 1in, right = 1in]{geometry}
+\makeatletter % make @ act like a letter
+\@addtoreset{equation}{section}
+\makeatother  % make @ act like a non-letter
+\setlength{\parskip}{3mm}
+\setlength{\parindent}{8mm}
+\usepackage{tabulary}
+
+\usepackage{url}
+
+\newcommand{\proglang}[1]{\textsf{#1}}
+\newcommand{\pkg}[1]{{\normalfont\fontseries{b}\selectfont #1}}
+\setlength\parindent{0pt}
+\linespread{1}
+\date{}
+\title{STAT 6494 Data Science Project Proposal}
+\author{Yishu Xue}
+\begin{document}
+\maketitle
+\section{Introduction}
+The fast development in information technology made communication between people
+worldwide easier than ever. These advances are always accompanied by challenges.
+Huge amounts of spam emails and texts are sent everyday. While spam filtering 
+technologies have been widely used by major email service providers such as 
+Gmail and Outlook, its application to mobile SMS is less pervasive. The iPhone, 
+for example, has an ``unprotected'' inbox. Anybody who knows your mobile phone
+number or iCloud account can send you messages without being blocked. 
+
+There are, however, third-party apps on both iOS and Android platforms
+that provide spam message filters. What is there filters based on? What algorithms
+do they use? Will these algorithms be accurate in terms of sensitivity and 
+specificity? In this project, I aim to build different classification models
+on an SMS Spam 
+Collection\footnote{\url{https://www.kaggle.com/uciml/sms-spam-collection-dataset}},
+compare their performances, and look for the best classification scheme.
+
+\section{Data}
+The dataset is open data from Kaggle. It contains one set of SMS messages in 
+English of 5,572 messages, tagged according being ham (legitimate) or spam.
+747 of them are spam, while the rest 4,825 are ham. 
+
+Examples:
+
+\begin{tabulary}{\textwidth}{|c|L|}\hline
+Spam & Had your mobile 11 months or more? U R entitled to Update to 
+the latest colour mobiles with camera for Free! Call The Mobile Update Co 
+FREE on 08002986030\\ \hline
+Ham & Oops, I'll let you know when my roommate's done. \\ \hline
+\end{tabulary}
+
+\section{Methods}
+The most frequently used classification method for SMS/email spam detection is 
+Naive Bayes, 
+followed by Support Vector Machine, Ensemble methods, logistic regression
+ and K-Nearest 
+Neighbors\citep{cormack2008email}. 
+I look forward to implementing these methods on the SMS Spam 
+Collection dataset, and see what specific features that they identify, what 
+spam successfully ``cheated'' the classifiers, etc. I'm also interested in the 
+application of EM for multinomial mixture models in text clustering, i.e.,
+regardless of the class labels, whether the algorithm could successfully 
+assign the SMS messages to two clusters.
+
+\bibliographystyle{chicago}
+\bibliography{proposal_yx}
+\end{document}
+
