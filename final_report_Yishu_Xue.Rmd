@@ -1,0 +1,402 @@
+---
+title: "Application of Email Spam Filtering Algorithms to SMS Data"
+# subtitle: "possible subtitle goes here"
+author:
+  - Yishu Xue^[<yishu.xue@uconn.edu>; Ph.D. student at
+    Department of Statistics, University of Connecticut.]
+date: "`r format(Sys.time(), '%d %B %Y')`"
+documentclass: article
+papersize: letter
+fontsize: 11pt
+bibliography: report.bib
+biblio-style: datalab
+keywords: Document classification; Feature extraction; Model tuning; Imbalanced data
+# keywords set in YAML header here only go to the properties of the PDF output
+# the keywords that appear in PDF output are set in latex/before_body.tex
+output:
+  bookdown::pdf_document2
+  bookdown::html_document2
+abstract: |
+    In this project, multiple popular algorithms for Email spam filtering are
+    implemented on a Short Message Service (SMS) dataset. Different methods 
+    for representing the dataset using matrices were attempted. In addition to 
+    utilizing only tokens, other characteristics of the message, such as 
+    proportion of numbers or capital letters, were explored. The final 
+    classification results were presented. Unsupervised learning was also 
+    performed on the dataset.
+---
+
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+## some utility functions, see the source code for details
+source("utils_template.R")
+
+## specify the packages needed
+pkgs <- c("DT", "leaflet", "splines2", "webshot", "stringr", "ggplot2", "plyr")
+need.packages(pkgs)
+
+library(reticulate)
+use_python("/Users/xueyishu/anaconda3/bin/python3.6")
+## external data can be read in by regular functions,
+## such as read.table or load
+
+## for latex and html output
+isHtml <- knitr::is_html_output()
+isLatex <- knitr::is_latex_output()
+latex <- ifelse(isLatex, '\\LaTeX\\', 'LaTeX')
+
+## specify global chunk options
+knitr::opts_chunk$set(fig.width = 5, fig.height = 3, dpi = 300,
+                      out.width = "90%", fig.align = "center")
+
+```
+
+
+# Introduction {#sec:intro}
+
+The fast development in information technology made communication between people
+worldwide easier than ever. These advances are always accompanied by challenges.
+Huge amounts of spam emails and texts are sent everyday. 
+A spam is defined to be *"unwanted communication intended to be delivered
+to an indiscriminate target, directly or indirectly,
+notwithstanding measures to prevent its delivery"*. [@cormack2008] 
+
+While spam filtering 
+technologies have been widely used by major email service providers such as 
+Gmail and Outlook, its application to mobile Short Message Service (SMS)
+is less pervasive. The iPhone, for example, has an “unprotected” inbox.
+Anybody who knows your mobile phone number or iCloud account can send you 
+messages without being blocked.
+
+In this project, we look forward to building different classification models
+on the SMS dataset. Different methods to convert text to matrices were attempted.
+Helpfulness of features in the dataset, other than the tokens, was studied. 
+
+This project is implemented using the both `r proglang("R")` and the 
+`r pkg("sklearn")` package in `r proglang("Python")`.
+The rest of this project report is organized as follows: In Section
+\@ref(sec:data), we briefly describe the SMS dataset, and do basic visualizations.
+Methods to convert text data to sparce matrices are described and implemented
+in Section \@ref{sec:vectorizer}. Results of common classification
+algorithms are given in Section \ref{sec:classify}. 
+
+
+# The SMS Dataset {#sec:data}
+
+The dataset is open data from [Kaggle.com](https://www.kaggle.com/uciml/sms-spam-collection-dataset/data).
+The original dataset has two columns, the first column being the labels, and the
+second column being the message content. All messages are in English language. 
+
+There are 5,572 messages in total, with 747 (13.41\%) of them being spams, and 
+the other 4,825 (86.59\%) being hams. The first five messages are shown below:
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+sms <- read.csv("./spam.csv", stringsAsFactors = FALSE, encoding = "latin1")[,1:2]
+sms$v1 <- factor(sms$v1)
+names(sms) <- c("Label", "Text")
+head(sms$Text, 5)
+```
+
+
+The third message, which is longer and contains more numbers than others do, is 
+a spam message. It is of interest whether these characteristics can be generalized
+and utilized in classifying spams. 
+
+(ref:histLength) Histogram of message length by type.
+
+```{r histLength, echo = FALSE, fig.cap = "(ref:histLength)"}
+sms$Length <- str_length(sms$Text)
+ggplot(sms, aes(x = Length)) + geom_histogram(binwidth = 5) + 
+    facet_wrap(~Label, scales = "free") + 
+    xlab("Message Length")
+```
+
+
+Figure \@ref(fig:histLength) indicates that, compared to shorter messages with 
+length less than 125 characters, longer messages with length between 125 and 200
+characters have higher probability of being spam. The histogram for hams is 
+positively skewed, while the histogram for spam is negatively skewed. 
+
+
+(ref:histPnum) Histogram of proportion of numbers in message by type.
+
+```{r histPnum, echo=FALSE, fig.cap = "(ref:histPnum)"}
+ncap <- function(mystring){
+    ncap <- as.numeric(ldply(str_match_all(mystring, "[A-Z]"),length))
+    return(ncap)
+}
+nnum <- function(mystring){
+    nnum <- as.numeric(ldply(str_match_all(mystring, "[0-9]"),length))
+    return(nnum)
+}
+
+sms$nnum <- sapply(sms$Text, nnum)
+sms$ncap <- sapply(sms$Text, ncap)
+sms$pnum <- sms$nnum / sms$Length
+sms$pcap <- sms$ncap / sms$Length
+
+ggplot(sms, aes(x = pnum)) + geom_histogram(bins = 100) + 
+    facet_wrap(~Label, scales = "free") + 
+    xlab("Proportion of Numbers in Message")
+```
+
+It can be seen from Figure \@ref(fig:histPnum) that, compared to spams, hams, with
+one exception of purely numbers, tend to have smaller proportions of numbers. 
+
+(ref:histPcap) Histogram of proportion of capital letters in message by type.
+
+```{r histPcap, echo = FALSE, fig.cap = "(ref:histPcap)"}
+ggplot(sms, aes(x = pcap)) + geom_histogram(bins = 100) + 
+    facet_wrap(~Label, scales = "free") + 
+    xlab("Proportion of Capital Letters in Message")
+```
+
+The difference in proportions of capital letters for ham and spam is not quite 
+significant in Figure \@ref(fig:histPcap). It is, however, still possible to 
+include it in the set of predictors, and see if it will make contributions to
+increasing classification accuracy.
+
+# Convert Text to Sparse Matrices with Vectorizers  {#sec:vectorizer}
+
+The most common way to extract numerical features from text content involves 
+tokenizing, i.e., assigning each token with an unique integer id, counting the 
+occurence of tokens in piece of text content, and sometimes normalizing the 
+rows of the resulting matrix before applying any algorithm. A token can be 
+any piece of text - a word, a phrase, or a sentence. This conversion process is 
+generally called vectorization. Two frequently used vectorizers are the 
+`CountVectorizer` and the `TfidfVectorizer`. Both vectorizers are implemented
+using `r proglang("Python")`. In this project, due to the relatively small 
+sample size, we only consider single words. For larger documents, it is possibly
+more meaningful to consider phrases of two or three words.
+
+## `CountVectorizer`
+
+The `CountVectorizer`, as illustrated by its name, counts the frequency of 
+appearance of each token in the document. See the simple example below:
+
+```{python, echo = FALSE}
+import pandas as pd 
+import numpy as np 
+import matplotlib as mpl
+import matplotlib.pyplot as plt 
+import seaborn as sns
+import string
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+import re
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+np.set_printoptions(precision = 3)
+```
+
+```{python}
+vectorizer = CountVectorizer()
+exampleCorpus = [
+    'This is the first sentence.',
+    'This is the second second sentence',
+    'And the third one',
+    'Is this the first document?'
+]
+
+X = vectorizer.fit_transform(exampleCorpus)
+print(X.toarray())
+```
+
+In the output above, each column corresponds to a single word that appeared. 
+The column names are, respectively, "and", "document", "first", "one", "second",
+"sentence", "the", "third", and "this". The $(i,j)$th entry in the output
+matrix is the occurence of the $i$ th token, i.e., word, in the $j$ th item 
+in the corpus. 
+
+## `TfidfVectorizer`
+
+The `CountVectorizer` serves as an efficient method to represent a corpus of
+text using a matrix. It can, however, sometimes be misleading, when the text 
+corpus is large. Some words, such as "the", "a" and "is" in English, will appear 
+quite frequently, and therefore carrying very little information about the 
+actual contents of the document. Feeding the count data directly to a classifier
+could cause these highly frequent words to shadow the frequencies of rarer, yet 
+more interesting words. It is, therefore, reasonable to consider a weighting 
+strategy, where the weight is decided both by the prevalence of a word in the 
+whole corpus and in a single piece of document.   
+
+Suppose we index the document usiing $d$ and the terms using $t$. 
+`Tfidf` is the product of `tf`, which stands for term-frequency and 
+denote as $tf(t,d)$, and `idf`, which stands for inverse document-frequency, 
+denoted as $idf(t)$. 
+
+$tf(t,d)$ is defined to be the frequency of the $t$th token in the $d$th document.
+And using the default settings in `r proglang("Python")`, $idf(t)$ is defined to be
+
+$$
+idf(t) = \log \frac{1 + n_d}{1 + df(d,t)} + 1,
+$$
+where $n_d$ is the total number of documents, $df(d,t)$ is the number of documents
+that contain term $t$, and the 1's in both the numerator and the denominator part
+of the logarithm serve as a smoothing parameter. Smoothing can be disabled by
+specifying `smooth_idf = False` in the options. 
+
+The last step of this conversion is normalization. By default, the resulting 
+tf-idf vectors are normalized by the Euclidean norm. It can alternatively
+normalized by the $\ell_1$ norm by setting `norm = 'l1'`. 
+
+Using the same example corpus as above, the tf-idf transformed matrix is obtained 
+by `TfidfVectorizer`. 
+
+```{python}
+vectorizer1 = TfidfVectorizer(norm = "l1")
+X1 = vectorizer1.fit_transform(exampleCorpus)
+print(X1.toarray())
+```
+
+```{python}
+vectorizer2 = TfidfVectorizer(norm = "l2")
+X2 = vectorizer2.fit_transform(exampleCorpus)
+print(X2.toarray())
+```
+
+## Application of Vectorizers to the SMS Data
+
+We apply both vectorizers to the SMS data to create the matrix for classification.
+It is important to notice that, although tf-idf adjusts the matrix for 
+high frequency words, due to the relatively small sample size, it is better if 
+we could remove some words that appear "too frequently". 
+
+In the `r pkg("nltk")` in `r proglang("Python")`, a collection of "stopwords" is 
+provided. A stop word is a commonly used word, which is used so frequently that
+search engines have been programmed to ignore it. The first 10 stop words are 
+printed below. For the full list of stopwords, run `print(stopwords)` instead
+of `print(stopwords[0:10])`. 
+
+```{python}
+from nltk.corpus import stopwords
+stop_words = stopwords.words("english")
+stopwords = [str(stop_words[x]) for x in range(len(stop_words))]
+print(stopwords[0:10])
+```
+
+We remove these stopwords from each SMS messgae, and then convert the messages
+to sparse matrices using the two vectorizers. The row numbers of the resulting
+matrices will equal the total number of messages in the corpus, and the 
+column numbers will be the number of tokens in the cleaned corpus. The 
+tf-idf transformation used the default option, Euclidean norm, in the 
+normalization step. The resulting matrices are "sparse" in the 
+sense that while there can be a huge number of tokens from a corpus, a single
+piece of text could only contain a small portion of them, and therefore the
+matrix will have many 0 entries. 
+
+```{python, echo = FALSE, warning = FALSE, message = FALSE}
+sms = pd.read_csv("./spam.csv", encoding = 'latin-1');
+sms = sms.drop(["Unnamed: 2", "Unnamed: 3", "Unnamed: 4"], axis = 1)
+sms = sms.rename(columns = {"v1": "Label", "v2": "Text"})
+sms["Length"] = sms["Text"].apply(len)
+import re
+len(re.findall(r'[A-Z]', sms["Text"][1]))
+def ncap(mystring):
+    return (len(re.findall(r'[A-Z]', mystring)))
+
+def nnum(mystring):
+    return (len(re.findall(r'[0-9]', mystring)))
+
+sms["ncap"] = sms["Text"].apply(ncap)
+sms["nnum"] = sms["Text"].apply(nnum)
+sms["pcap"] = sms["ncap"].div(sms["Length"], axis = 0)
+sms["pnum"] = sms["nnum"].div(sms["Length"], axis = 0)
+```
+
+```{python}
+## remove stopwords from text message
+def clean_message(text):
+   text = text.translate(str.maketrans("", "", string.punctuation))
+   text = [word for word in text.split() if word not in stopwords]
+   
+   return " ".join(text)
+```
+
+```{python}
+to_process = sms["Text"].copy()
+to_process = to_process.str.lower()
+text_cleaned = to_process.apply(clean_message)
+
+vectorizer1 = CountVectorizer("english")
+features_count = vectorizer1.fit_transform(text_cleaned)
+vectorizer2 = TfidfVectorizer("english", norm = "l2")
+features_tfidf = vectorizer2.fit_transform(text_cleaned)
+print(type(features_tfidf))
+```
+
+<!-- ```{python, echo = FALSE, message = FALSE, warning = FALSE} -->
+<!-- import matplotlib.pyplot as plt -->
+<!-- from scipy.sparse import coo_matrix -->
+<!-- import matplotlib -->
+
+<!-- def plot_coo_matrix(m): -->
+<!--     if not isinstance(m, coo_matrix): -->
+<!--         m = coo_matrix(m) -->
+<!--     fig = plt.figure() -->
+<!--     ax = fig.add_subplot(111, axisbg='black') -->
+<!--     ax.plot(m.col, m.row, 's', color='white', ms=1) -->
+<!--     ax.set_xlim(0, m.shape[1]) -->
+<!--     ax.set_ylim(0, m.shape[0]) -->
+<!--     ax.set_aspect('equal') -->
+<!--     for spine in ax.spines.values(): -->
+<!--         spine.set_visible(False) -->
+<!--     ax.invert_yaxis() -->
+<!--     ax.set_aspect('equal') -->
+<!--     ax.set_xticks([]) -->
+<!--     ax.set_yticks([]) -->
+<!--     return ax -->
+
+
+<!-- plot_coo_matrix(features_count) -->
+<!-- ``` -->
+
+# Classification Algorithms, Model Tuning, and Results {#sec:classify}
+
+The classification algorithms considered include Logistic Regression with 
+elasticnet penalty, Support Vector Machine, Decision Tree, Multinomial 
+Naive Bayes, K-Nearest Neighbors, and four ensemble methods: Random Forest,
+AdaBoost, Bagging, and ExtraTrees. All algorithms except for ExtraTrees
+are quite commonly implemented in machine learning applications. 
+
+ExtraTrees, short for "extremely randomized trees", is essentially a more 
+randomized version of Random Forest. In Random Forest, a random subset of 
+features is used, and the algorithm looks for the most discriminative 
+thresholds. In ExtraTrees, however, random thresholds are drawn for each
+candidate feature, and the best performer is picked as the splitting rule. 
+This procedure, at the cost of introducing a slightly increase in bias, 
+effectively reduces the variance of the model.
+
+To avoid any additional source of variation in model performance on the feature
+matrices given by the two vectorizers, the same row indices were used to partition
+the matrices into training sets of 80\% its size, and testing sets of the other
+20\% size. The training set contained 3,882 (87.1\%) hams and 575 (12.9\%) spams. 
+The testing set contained the rest 943 (84.6\%) hams and 172 (15.6\%) spams. 
+The model performance was measured using the proportion of messages in the 
+testing set that were correctly assigned labels.
+
+Each of these models have been tuned to give their best performance. The results
+are summarized below:
+
+(ref:countResult) Performance of selected classifiers on the testing dataset obtained 
+by `CountVectorizer`.
+
+```{r, echo = FALSE}
+Classifier <- c('Support Vector Machine', 'Logistic Regression', 'Decision Tree',
+                 'Multinomial Naive Bayes', 'K-Nearest Neighbor', 'Random Forest', 
+                 'AdaBoost', 'Bagging', 'ExtraTrees')
+Prediction.Accuracy <- round(c(0.9748878923766816,0.9838565022421525, 0.9695067264573991,
+                        0.9766816143497757, 0.8511210762331839, 0.9739910313901345,
+                        0.9614349775784753, 0.9713004484304932, 0.9802690582959641), 4)
+```
+
+```{r countResult, echo = FALSE}
+knitr::kable(data.frame(Classifier, Prediction.Accuracy), booktabs = TRUE,
+             caption = '(ref:countResult)')
+```
+
+# Reference {-}
+
+
