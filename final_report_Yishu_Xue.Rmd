@@ -16,6 +16,7 @@ keywords: Document classification; Feature extraction; Model tuning; Imbalanced 
 output:
   bookdown::pdf_document2
   bookdown::html_document2
+urlcolor: blue
 abstract: |
     In this project, multiple popular algorithms for Email spam filtering are
     implemented on a Short Message Service (SMS) dataset. Different methods 
@@ -61,6 +62,7 @@ A spam is defined to be *"unwanted communication intended to be delivered
 to an indiscriminate target, directly or indirectly,
 notwithstanding measures to prevent its delivery"*. [@cormack2008] 
 
+
 While spam filtering 
 technologies have been widely used by major email service providers such as 
 Gmail and Outlook, its application to mobile Short Message Service (SMS)
@@ -68,12 +70,14 @@ is less pervasive. The iPhone, for example, has an “unprotected” inbox.
 Anybody who knows your mobile phone number or iCloud account can send you 
 messages without being blocked.
 
+
 In this project, we look forward to building different classification models
 on the SMS dataset. Different methods to convert text to matrices were attempted.
 Helpfulness of features in the dataset, other than the tokens, was studied. 
 
+
 This project is implemented using the both `r proglang("R")` and the 
-`r pkg("sklearn")` package in `r proglang("Python")`.
+`r pkg("sklearn")` package [@pedregosa2011scikit] in `r proglang("Python")`.
 The rest of this project report is organized as follows: In Section
 \@ref(sec:data), we briefly describe the SMS dataset, and do basic visualizations.
 Methods to convert text data to sparce matrices are described and implemented
@@ -86,6 +90,7 @@ algorithms are given in Section \ref{sec:classify}.
 The dataset is open data from [Kaggle.com](https://www.kaggle.com/uciml/sms-spam-collection-dataset/data).
 The original dataset has two columns, the first column being the labels, and the
 second column being the message content. All messages are in English language. 
+
 
 There are 5,572 messages in total, with 747 (13.41\%) of them being spams, and 
 the other 4,825 (86.59\%) being hams. The first five messages are shown below:
@@ -106,10 +111,6 @@ and utilized in classifying spams.
 
 ```{r histLength, echo = FALSE, fig.cap = "(ref:histLength)"}
 sms$Length <- str_length(sms$Text)
-ggplot(sms, aes(x = Length)) + geom_histogram(binwidth = 5) + 
-    facet_wrap(~Label, scales = "free") + 
-    xlab("Message Length")
-
 ggplot(sms, aes(x = Length)) + geom_histogram(binwidth = 5) + 
     facet_wrap(~Label, scales = "free") + 
     xlab("Message Length")
@@ -146,6 +147,7 @@ ggplot(sms, aes(x = pnum)) + geom_histogram(bins = 100) +
 
 It can be seen from Figure \@ref(fig:histPnum) that, compared to spams, hams, with
 one exception of purely numbers, tend to have smaller proportions of numbers. 
+
 
 (ref:histPcap) Histogram of proportion of capital letters in message by type.
 
@@ -214,6 +216,7 @@ The column names are, respectively, "and", "document", "first", "one", "second",
 matrix is the occurence of the $i$ th token, i.e., word, in the $j$ th item 
 in the corpus. 
 
+
 ## `TfidfVectorizer`
 
 The `CountVectorizer` serves as an efficient method to represent a corpus of
@@ -224,12 +227,14 @@ actual contents of the document. Feeding the count data directly to a classifier
 could cause these highly frequent words to shadow the frequencies of rarer, yet 
 more interesting words. It is, therefore, reasonable to consider a weighting 
 strategy, where the weight is decided both by the prevalence of a word in the 
-whole corpus and in a single piece of document.   
+whole corpus and in a single piece of document [@sparck1972statistical].
+
 
 Suppose we index the document usiing $d$ and the terms using $t$. 
 `Tfidf` is the product of `tf`, which stands for term-frequency and 
 denote as $tf(t,d)$, and `idf`, which stands for inverse document-frequency, 
 denoted as $idf(t)$. 
+
 
 $tf(t,d)$ is defined to be the frequency of the $t$th token in the $d$th document.
 And using the default settings in `r proglang("Python")`, $idf(t)$ is defined to be
@@ -242,9 +247,11 @@ that contain term $t$, and the 1's in both the numerator and the denominator par
 of the logarithm serve as a smoothing parameter. Smoothing can be disabled by
 specifying `smooth_idf = False` in the options. 
 
+
 The last step of this conversion is normalization. By default, the resulting 
 tf-idf vectors are normalized by the Euclidean norm. It can alternatively
 normalized by the $\ell_1$ norm by setting `norm = 'l1'`. 
+
 
 Using the same example corpus as above, the tf-idf transformed matrix is obtained 
 by `TfidfVectorizer`. 
@@ -268,7 +275,9 @@ It is important to notice that, although tf-idf adjusts the matrix for
 high frequency words, due to the relatively small sample size, it is better if 
 we could remove some words that appear "too frequently". 
 
-In the `r pkg("nltk")` in `r proglang("Python")`, a collection of "stopwords" is 
+
+In the `r pkg("nltk")` [@bird2009natural]
+in `r proglang("Python")`, a collection of "stopwords" is 
 provided. A stop word is a commonly used word, which is used so frequently that
 search engines have been programmed to ignore it. The first 10 stop words are 
 printed below. For the full list of stopwords, run `print(stopwords)` instead
@@ -331,31 +340,7 @@ features_tfidf = vectorizer2.fit_transform(text_cleaned)
 print(type(features_tfidf))
 ```
 
-<!-- ```{python, echo = FALSE, message = FALSE, warning = FALSE} -->
-<!-- import matplotlib.pyplot as plt -->
-<!-- from scipy.sparse import coo_matrix -->
-<!-- import matplotlib -->
 
-<!-- def plot_coo_matrix(m): -->
-<!--     if not isinstance(m, coo_matrix): -->
-<!--         m = coo_matrix(m) -->
-<!--     fig = plt.figure() -->
-<!--     ax = fig.add_subplot(111, axisbg='black') -->
-<!--     ax.plot(m.col, m.row, 's', color='white', ms=1) -->
-<!--     ax.set_xlim(0, m.shape[1]) -->
-<!--     ax.set_ylim(0, m.shape[0]) -->
-<!--     ax.set_aspect('equal') -->
-<!--     for spine in ax.spines.values(): -->
-<!--         spine.set_visible(False) -->
-<!--     ax.invert_yaxis() -->
-<!--     ax.set_aspect('equal') -->
-<!--     ax.set_xticks([]) -->
-<!--     ax.set_yticks([]) -->
-<!--     return ax -->
-
-
-<!-- plot_coo_matrix(features_count) -->
-<!-- ``` -->
 
 # Classification Algorithms, Model Tuning, and Results {#sec:classify}
 
@@ -363,9 +348,28 @@ The classification algorithms considered include Support Vector Machine,
 Logistic Regression with elasticnet penalty, Decision Tree, Multinomial 
 Naive Bayes, K-Nearest Neighbors, and four ensemble methods: Random Forest,
 AdaBoost, Bagging, and ExtraTrees. All algorithms except for ExtraTrees
-are quite commonly implemented in machine learning applications. 
+are quite commonly implemented in machine learning applications. They are 
+all provided by the `r proglang("Python")` `r pkg("sklearn")` package, and 
+can be imported using the following code. The code for the model training and 
+testing part are not quite important and for sake of space we omit it here. 
 
-ExtraTrees, short for "extremely randomized trees", is essentially a more 
+```{python, eval = FALSE}
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import SGDClassifier
+from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+```
+
+ExtraTrees [@geurts2006extremely],
+short for "extremely randomized trees", is essentially a more 
 randomized version of Random Forest. In Random Forest, a random subset of 
 features is used, and the algorithm looks for the most discriminative 
 thresholds. In ExtraTrees, however, random thresholds are drawn for each
@@ -373,17 +377,24 @@ candidate feature, and the best performer is picked as the splitting rule.
 This procedure, at the cost of introducing a slightly increase in bias, 
 effectively reduces the variance of the model.
 
+
 To avoid any additional source of variation in model performance on the feature
 matrices given by the two vectorizers, the same row indices were used to partition
 the matrices into training sets of 80\% its size, and testing sets of the other
 20\% size. The training set contained 3,882 (87.1\%) hams and 575 (12.9\%) spams. 
 The testing set contained the rest 943 (84.6\%) hams and 172 (15.6\%) spams. 
 The model performance was measured using the proportion of messages in the 
-testing set that were correctly assigned labels.
+testing set that were correctly assigned labels, calculated by `accuracy_score` 
+function from `r pkg("sklearn")`.
+
+```{python, eval = FALSE}
+from sklearn.metrics import accuracy_score
+```
 
 Each of these models have been tuned to give their best performance on 
 the sparse matrices generated by `CountVectorizer` and `TfidfVectorizer`, 
 respectively. The results are summarized below:
+
 
 (ref:countResult) Performance of selected classifiers on the testing dataset obtained 
 by `CountVectorizer`.
@@ -421,9 +432,11 @@ Multinomial Naive Bayes and ExtraTrees have better performance with `CountVector
 while the other three ensemble methods, Random Forest, AdaBoost and Bagging perform
 better on `TfidfVectorizer`. 
 
+
 It is also worth noticing that K-Nearest Neighbor, in either case, has less than 90\%
 accuracy. Considering the fact that 84.6\% of the testing data is in a single 
 ham class, it is not much better than a random guess.  
+
 
 The reason why `TfidfVectorizer` is not outperforming `CountVectorizer` might be 
 due to the relatively small sample size. With 9,376 tokens and 5,572 messages, 
@@ -440,6 +453,7 @@ the proportion of numbers, and the proportion of capital letters. It is of inter
 whether adding these features to the sparse matrices will help increase classification
 accuracy or not. 
 
+
 To begin with, all three features are appended to the sparse matrix obtained using 
 `CountVectorizer` as three additiona columns. Same process was repeated, adding
 two of them at each time. The four chosen algorithms were then run on the 
@@ -450,6 +464,7 @@ which is unnormalized, is too large compared to the entries in the original matr
 Normalizing `Length` using its maximum value turned out to be not helping, either, 
 as the longest message has 910 characters, and the normalization suppresses over
 97.4\% observations into the range (0, 0.2).
+
 
 The extended matrix was chosen to be the one obtained using `CountVectorizer`, 
 together with two columns for `pnum` and `pcap`. The four classifiers were 
@@ -482,6 +497,7 @@ with more weak learners. It has, however, been proved in the model tuning step
 that using a large number of weak learners did not make the ensemble methods 
 better than the simpler ones. 
 
+
 Also, in this case, it is more reasonable to downsample the ham class. If we 
 upsample the spam class, we could possibly have multiple messages in the 
 training and testing dataset that are exactly the same. Using information
@@ -490,6 +506,7 @@ that the classifier is good. In reality, it is rare that two messages are
 exactly the same. Therefore, we use the downsampling approach here to cope with
 imbalance. 
 
+
 We randomly selected 20\% (965) of hams and 80\% (597) spams from the original dataset, 
 and combined them into a new training set. The rest 3860 hams and 150 spams are
 combined into a new testing set. This essentially sets the testing 
@@ -497,6 +514,111 @@ benchmark for a "good" classifier to 96.26\%, since we could achieve this accura
 simply by labeling every testing message as ham.
 
 
-# Reference {-}
+The chosen four classifiers were trained on this new training set plus `pnum` and 
+`pcap` for each message, and their performances on the testing set are given below 
+in Table \@ref(tab:resultImb).
+
+```{r, echo = FALSE}
+Prediction.Accuracy4 <- round(c(0.97581047381546138, 0.97032418952618449, 
+                                0.94389027431421446, 0.96832917705735666,
+                                0.96259351620947631, 0.99102244389027427,
+                                0.95511221945137159, 0.96159600997506234,
+                                0.99276807980049875), 4)
+```
+
+(ref:resultImb) Performance of selected classifiers trained on the resampled, more 
+balanced training set.
+
+```{r resultImb, echo = FALSE}
+knitr::kable(data.frame(Classifier = Classifier1,
+                       Prediction.Accuracy = Prediction.Accuracy4), booktabs = TRUE,
+            caption = '(ref:resultImb)')
+```
+
+It is couter-intuitive that with an relatively expanded set of spam messages, 
+Decision Tree is worse than others, not even exceeding the 96.26\% benchmark. 
+This could be due to the fact that it is just one learner. We tried the ensemble
+methods as well, and both Random Forest and ExtraTrees have nearly 100\% 
+accuracy. 
+
+By comparing the performance of classifiers using training sets that have 
+different proportions of hams and spams, and the type of testing messages that 
+were incorrectly classified, we obtain an interesting observation
+that, when the proportion of spams is low, it is better to use simpler methods
+such as Logistic Regression with elastic net and Naive Bayes, while when
+the proportion of hams is higher, Random Forest or its more randomized cousin, 
+ExtraTrees, become the best choice. This also involves the tradeoff between safety 
+and accuracy when implementing this classifier in reality - do we want to be safer
+at the cost of having more mislabeled hams, or do we want to receive every useful
+messgae at the cost of receiving some unsolicited spams? We believe the 
+appropriate proportions of ham and spam in the training set
+makes an interesting topic for further exploration. 
+
+<!-- # Text Clustering Using K-Means -->
+
+<!-- The construction of classifiers is essentially a supervised learning problem.  -->
+<!-- The SMS dataset, however, also provides data for another interesting problem - -->
+<!-- unsupervised text clustering. We are interested in whether the text can  -->
+<!-- be clustered into two clusters, in one of which the majority is spam, and ham -->
+<!-- for the other one.  -->
+
+
+<!-- K-Means was used for this purpose. Its modified cousin, Minibatch K-Means was  -->
+<!-- also used. The difference between them is that Minibatch K-Means uses  -->
+<!-- minibatches, which are subsets of the input data, to decrease the rate of change -->
+<!-- for a centroid over time. This enables Minibatch K-Means to converge faster than  -->
+<!-- the original K-Means, while incurring a slight bias, which could be ignored  -->
+<!-- in most practical problems.  -->
+
+
+<!-- The two clustering algorithms are also provided by the `r pkg("sklearn")` package.  -->
+<!-- Their performances were measured using two scores called the `homogeneity score`  -->
+<!-- and the `completeness score`. Both scores range between 0 and 1. A clustering  -->
+<!-- result satisfies homogeneity if all of its clusters contain only data points -->
+<!-- which are members of a single class, and satisfies completeness if all the data -->
+<!-- points that are members of a given class are elements of the same cluster.  -->
+
+
+<!-- We ran the code below and obtained the clustering results. Both K-Means and  -->
+<!-- Minibatch K-Means had `homogeneity score` of 1, and `completeness score` of 0.  -->
+<!-- This means that,  -->
+
+<!-- ```{python, eval = FALSE} -->
+<!-- from sklearn.cluster import KMeans, MiniBatchKMeans -->
+<!-- from sklearn import metrics -->
+<!-- ## text_cleaned is the entire corpus, with stopwords removed -->
+<!-- X = vectorizer3.fit_transform(text_cleaned) -->
+<!-- km1 = MiniBatchKMeans(n_clusters = 2, init = 'k-means++') -->
+<!-- km2 = KMeans(n_clusters = 2, init = "k-means++") -->
+<!-- ``` -->
+
+
+# Discussions
+
+In this project, we implemented multiple classification algorithms on the SMS
+spam dataset. Depending on the way that the dataset is vectorized, the 
+classifiers had varying performances. Also, the accuracy of the classifiers 
+also depend on the proportion of spam and ham messages in the data on which 
+they were trained. In dealing with the imbalanced data, we encountered the 
+tradeoff between being conservative and safe, or otherwise. 
+This is echoed in reality, as sometimes Gmail could mark an useful email as 
+spam and put it in the junk mail box, or
+[allow spams to enter our inboxes](https://imgur.com/a/aX4yX).
+
+
+One limitation to what we did in this project is the relatively small sample size,
+and the imbalance of ham and spam in the dataset. In reality, if a SMS spam filter 
+is going to be implemented, we expect that more data could be collected to increase
+its accuracy. Phrases, which have been discussed in the interim report, could also
+help improving the classification accuray. Due to the small sample size, it was 
+not implemented. Interested readers can refer to 
+[Wei Shi's topic presentation](https://cdn.rawgit.com/wwwshi/topic-presentation/e87152a1/topic_presentation_Wei.html#1) 
+for more information regarding the usage of phrases in text mining. 
+
+# Acknowledgment {-}
+
+We would like to thank Wenjie Wang for providing this nice and delicate template for 
+scientific report writing. Our gratitude also goes to Wei Shi, for many useful
+discussions during the process of this project.
 
 
