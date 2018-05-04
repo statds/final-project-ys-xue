@@ -87,7 +87,8 @@ algorithms are given in Section \ref{sec:classify}.
 
 # The SMS Dataset {#sec:data}
 
-The dataset is open data from [Kaggle.com](https://www.kaggle.com/uciml/sms-spam-collection-dataset/data).
+The dataset is open data from 
+[Kaggle.com](https://www.kaggle.com/uciml/sms-spam-collection-dataset/data).
 The original dataset has two columns, the first column being the labels, and the
 second column being the message content. All messages are in English language. 
 
@@ -145,8 +146,8 @@ ggplot(sms, aes(x = pnum)) + geom_histogram(bins = 100) +
     xlab("Proportion of Numbers in Message")
 ```
 
-It can be seen from Figure \@ref(fig:histPnum) that, compared to spams, hams, with
-one exception of purely numbers, tend to have smaller proportions of numbers. 
+It can be seen from Figure \@ref(fig:histPnum) that, compared to spams, hams, 
+with one exception of purely numbers, tend to have smaller proportions of numbers. 
 
 
 (ref:histPcap) Histogram of proportion of capital letters in message by type.
@@ -619,6 +620,8 @@ for more information regarding the usage of phrases in text mining.
 
 We would like to thank Wenjie Wang for providing this nice and delicate template for 
 scientific report writing. Our gratitude also goes to Wei Shi, for many useful
-discussions during the process of this project.
+discussions during the process of this project. Last and most importantly we 
+thank the instructors and all classmates for presentations on different interesting 
+aspects of data science. 
 
 
